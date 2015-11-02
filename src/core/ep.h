@@ -41,13 +41,18 @@ struct nn_ep {
     int eid;
     struct nn_list_item item;
     char addr [NN_SOCKADDR_MAX + 1];
+    char provider [20];
 
     /*  Error state for endpoint */
     int last_errno;
-};
+} ep_type;
 
 int nn_ep_init (struct nn_ep *self, int src, struct nn_sock *sock, int eid,
     struct nn_transport *transport, int bind, const char *addr);
+
+int nn_ep_init_libfabric (struct nn_ep *self, int src, struct nn_sock *sock, int eid,
+    struct nn_transport *transport, int bind, const char *addr, const char *provider);
+
 void nn_ep_term (struct nn_ep *self);
 
 void nn_ep_start (struct nn_ep *self);

@@ -45,6 +45,7 @@
 
 #include "../transports/inproc/inproc.h"
 #include "../transports/ipc/ipc.h"
+#include "../transports/libfabric/libfabric.h"
 #include "../transports/tcp/tcp.h"
 #include "../transports/ws/ws.h"
 #include "../transports/tcpmux/tcpmux.h"
@@ -165,7 +166,7 @@ struct nn_global {
 };
 
 /*  Singleton object containing the global state of the library. */
-static struct nn_global self;
+static struct nn_global self = {0};
 
 /*  Context creation- and termination-related private functions. */
 static void nn_global_init (void);
@@ -260,6 +261,7 @@ static void nn_global_init (void)
     /*  Plug in individual transports. */
     nn_global_add_transport (nn_inproc);
     nn_global_add_transport (nn_ipc);
+    nn_global_add_transport (nn_libfabric);
     nn_global_add_transport (nn_tcp);
     nn_global_add_transport (nn_ws);
     nn_global_add_transport (nn_tcpmux);
@@ -296,6 +298,7 @@ static void nn_global_init (void)
 
     nn_ctx_init (&self.ctx, nn_global_getpool (), NULL);
     nn_timer_init (&self.stat_timer, NN_GLOBAL_SRC_STAT_TIMER, &self.fsm);
+    nn_fsm_start (&self.fsm);
 
     /*   Initializing special sockets.  */
     addr = getenv ("NN_STATISTICS_SOCKET");
@@ -337,8 +340,6 @@ static void nn_global_init (void)
         errno_assert (rc == 0);
         self.hostname[63] = '\0';
     }
-
-    nn_fsm_start(&self.fsm);
 }
 
 static void nn_global_term (void)
@@ -956,10 +957,6 @@ int nn_recvmsg (int s, struct nn_msghdr *msghdr, int flags)
 
     nn_msg_term (&msg);
 
-    /*  Adjust the statistics. */
-    nn_sock_stat_increment (self.socks [s], NN_STAT_MESSAGES_RECEIVED, 1);
-    nn_sock_stat_increment (self.socks [s], NN_STAT_BYTES_RECEIVED, sz);
-
     return (int) sz;
 }
 
@@ -1182,8 +1179,9 @@ static void nn_global_submit_statistics ()
 static int nn_global_create_ep (int s, const char *addr, int bind)
 {
     int rc;
-    const char *proto;
-    const char *delim;
+    const char *proto,*addr2;
+    const char *delim, *delimprovider;
+    char *tmp;
     size_t protosz;
     struct nn_transport *tp;
     struct nn_list_item *it;
@@ -1196,13 +1194,46 @@ static int nn_global_create_ep (int s, const char *addr, int bind)
 
     /*  Separate the protocol and the actual address. */
     proto = addr;
-    delim = strchr (addr, ':');
+    delim = strchr (addr, ':'); //-ipc
+
+
     if (!delim)
         return -EINVAL;
     if (delim [1] != '/' || delim [2] != '/')
         return -EINVAL;
     protosz = delim - addr;
     addr += protosz + 3;
+	printf("\nPERFECT 1111\n");
+
+/***If transport is libfabric, separate the actuall address and provider****/
+    if(memcmp("libfabric", proto, protosz) == 0){
+
+	delimprovider = strchr (addr, '-');
+	//printf("\n ADDR= %s", addr);
+	//printf("\n delim= %s \n", delim); //apo anw katw teleia kai meta
+	//printf("\n delimprovider= %s \n", delimprovider);
+	//protosz = delim - addr;
+	//printf("\n Protosz = %d \n", protosz);
+    	//addr += protosz + 3;
+	//printf("\n ADDR 2= %s \n", addr);
+
+	int onlyaddr=delimprovider-addr;
+	tmp=malloc(onlyaddr);
+	strncpy(tmp, addr, onlyaddr);
+	tmp[onlyaddr]='\0';
+	//printf("\n LAL2 einai = %s \n", lal2);
+	addr2=tmp;
+	//free(tmp);
+	//printf("\n ADDR2 einai = %s \n", addr2);
+	printf("\nPERFECT 2222\n");
+    }
+/*****************/
+
+
+    
+
+
+
 
     /*  Find the specified protocol. */
     tp = NULL;
@@ -1222,7 +1253,27 @@ static int nn_global_create_ep (int s, const char *addr, int bind)
     }
 
     /*  Ask the socket to create the endpoint. */
-    rc = nn_sock_add_ep (self.socks [s], tp, bind, addr);
+    if(memcmp("libfabric", proto, protosz) == 0){
+
+	printf("\nPERFECT\n");
+	//printf("\n ADDR= %s", addr);
+	//printf("\n delim= %s \n", delim); //apo anw katw teleia kai meta
+	//printf("\n delimprovider= %s \n", delimprovider);
+	//printf("\n Protosz = %d \n", protosz);
+	//printf("\n ADDR2 einai = %s \n", addr2);
+	
+	rc = nn_sock_add_ep_libfabric (self.socks [s], tp, bind, addr, delimprovider);
+	
+	printf("\nPERFECT33\n");
+
+	//free(tmp);
+    } 
+    else 
+    {
+
+    	rc = nn_sock_add_ep (self.socks [s], tp, bind, addr);
+
+    }
     return rc;
 }
 

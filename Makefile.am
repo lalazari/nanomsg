@@ -41,7 +41,8 @@ nninclude_HEADERS = \
     src/pipeline.h \
     src/survey.h \
     src/bus.h \
-    src/tcpmux.h
+    src/tcpmux.h \
+    src/libfabric.h
 
 lib_LTLIBRARIES = libnanomsg.la
 
@@ -318,12 +319,31 @@ TRANSPORTS_TCPMUX = \
     src/transports/tcpmux/tcpmux.h \
     src/transports/tcpmux/tcpmux.c
 
+TRANSPORTS_LIBFABRIC = \
+    src/transports/libfabric/alibfabric.h \
+    src/transports/libfabric/alibfabric.c \
+    src/transports/libfabric/blibfabric.h \
+    src/transports/libfabric/blibfabric.c \
+    src/transports/libfabric/clibfabric.h \
+    src/transports/libfabric/clibfabric.c \
+    src/transports/libfabric/libfabric.h \
+    src/transports/libfabric/libfabric.c \
+    src/transports/libfabric/slibfabric.h \
+    src/transports/libfabric/slibfabric.c \
+    src/transports/libfabric/jsmn.h \
+    src/transports/libfabric/pingpong_shared.h \
+    src/transports/libfabric/pingpong_shared.c \
+    src/transports/libfabric/shared.h \
+    src/transports/libfabric/shared.c 
+   
+
 NANOMSG_TRANSPORTS = \
     $(TRANSPORTS_UTILS) \
     $(TRANSPORTS_INPROC) \
     $(TRANSPORTS_IPC) \
     $(TRANSPORTS_TCP) \
     $(TRANSPORTS_WS) \
+    $(TRANSPORTS_LIBFABRIC) \
     $(TRANSPORTS_TCPMUX)
 
 libnanomsg_la_SOURCES = \

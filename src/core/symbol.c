@@ -26,6 +26,7 @@
 #include "../inproc.h"
 #include "../ipc.h"
 #include "../tcp.h"
+#include "../libfabric.h"
 
 #include "../pair.h"
 #include "../pubsub.h"
@@ -99,6 +100,8 @@ static const struct nn_symbol_properties sym_value_names [] = {
     {NN_INPROC, "NN_INPROC", NN_NS_TRANSPORT,
         NN_TYPE_NONE, NN_UNIT_NONE},
     {NN_IPC, "NN_IPC", NN_NS_TRANSPORT,
+        NN_TYPE_NONE, NN_UNIT_NONE},
+    {NN_LIBFABRIC, "NN_LIBFABRIC", NN_NS_TRANSPORT,
         NN_TYPE_NONE, NN_UNIT_NONE},
     {NN_TCP, "NN_TCP", NN_NS_TRANSPORT,
         NN_TYPE_NONE, NN_UNIT_NONE},

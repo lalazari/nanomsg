@@ -80,6 +80,52 @@ int nn_ep_init (struct nn_ep *self, int src, struct nn_sock *sock, int eid,
 
     return 0;
 }
+/*********************************/
+
+int nn_ep_init_libfabric (struct nn_ep *self, int src, struct nn_sock *sock, int eid,
+    struct nn_transport *transport, int bind, const char *addr, const char *provider)
+{
+    int rc;
+
+    nn_fsm_init (&self->fsm, nn_ep_handler, nn_ep_shutdown,
+        src, self, &sock->fsm);
+    self->state = NN_EP_STATE_IDLE;
+
+    self->epbase = NULL;
+    self->sock = sock;
+    self->eid = eid;
+    self->last_errno = 0;
+    nn_list_item_init (&self->item);
+    memcpy (&self->options, &sock->ep_template, sizeof(struct nn_ep_options));
+
+    /*  Store the textual form of the address. */
+    nn_assert (strlen (addr) <= NN_SOCKADDR_MAX);
+    strcpy (self->addr, addr);
+
+    /***/	
+    strcpy(self->provider, provider);
+    printf("Mexri nn_ep_init_libfabric sto ep.c");
+    /***/
+
+    /*  Create transport-specific part of the endpoint. */
+    if (bind) {
+	printf("Bike sti bind");
+        rc = transport->bind ((void*) self, &self->epbase);
+    }
+    else
+        rc = transport->connect ((void*) self, &self->epbase);
+
+    /*  Endpoint creation failed. */
+    if (rc < 0) {
+        nn_list_item_term (&self->item);
+        nn_fsm_term (&self->fsm);
+        return rc;
+    }
+
+    return 0;
+}
+
+/********************************/
 
 void nn_ep_term (struct nn_ep *self)
 {

@@ -505,6 +505,46 @@ int nn_sock_add_ep (struct nn_sock *self, struct nn_transport *transport,
 
     return eid;
 }
+/*****************with provider****************/
+int nn_sock_add_ep_libfabric (struct nn_sock *self, struct nn_transport *transport,
+    int bind, const char *addr, const char *provider)
+{
+	int rc;
+    struct nn_ep *ep;
+    int eid;
+
+    nn_ctx_enter (&self->ctx);
+
+    /*  Instantiate the endpoint. */
+    ep = nn_alloc (sizeof (struct nn_ep), "endpoint");
+
+    //rc = nn_ep_init (ep, NN_SOCK_SRC_EP, self, self->eid, transport, bind, addr);
+
+    /*********************/
+     printf("Mexri nn_ep_init_libfabric ok");
+     rc = nn_ep_init_libfabric (ep, NN_SOCK_SRC_EP, self, self->eid, transport, bind, addr, provider);
+
+
+    /***********************/
+    if (nn_slow (rc < 0)) {
+        nn_free (ep);
+        nn_ctx_leave (&self->ctx);
+        return rc;
+    }
+    nn_ep_start (ep);
+
+    /*  Increase the endpoint ID for the next endpoint. */
+    eid = self->eid;
+    ++self->eid;
+
+    /*  Add it to the list of active endpoints. */
+    nn_list_insert (&self->eps, &ep->item, nn_list_end (&self->eps));
+
+    nn_ctx_leave (&self->ctx);
+
+    return eid;
+
+}
 
 int nn_sock_rm_ep (struct nn_sock *self, int eid)
 {
@@ -601,7 +641,7 @@ int nn_sock_send (struct nn_sock *self, struct nn_msg *msg, int flags)
         nn_ctx_leave (&self->ctx);
         rc = nn_efd_wait (&self->sndfd, timeout);
         if (nn_slow (rc == -ETIMEDOUT))
-            return -ETIMEDOUT;
+            return -EAGAIN;
         if (nn_slow (rc == -EINTR))
             return -EINTR;
         errnum_assert (rc == 0, rc);
@@ -679,7 +719,7 @@ int nn_sock_recv (struct nn_sock *self, struct nn_msg *msg, int flags)
         nn_ctx_leave (&self->ctx);
         rc = nn_efd_wait (&self->rcvfd, timeout);
         if (nn_slow (rc == -ETIMEDOUT))
-            return -ETIMEDOUT;
+            return -EAGAIN;
         if (nn_slow (rc == -EINTR))
             return -EINTR;
         errnum_assert (rc == 0, rc);
@@ -833,14 +873,11 @@ static void nn_sock_shutdown (struct nn_fsm *self, int src, int type,
     }
     if (nn_slow (sock->state == NN_SOCK_STATE_STOPPING_EPS)) {
 
-        if (!(src == NN_SOCK_SRC_EP && type == NN_EP_STOPPED)) {
-            /*  If we got here waiting for EPs to teardown, but src is
-                not an EP, then it isn't safe for us to do anything,
-                because we just need to wait for the EPs to finish
-                up their thing.  Just bail. */
-            return;
-        }
         /*  Endpoint is stopped. Now we can safely deallocate it. */
+        if (!(src == NN_SOCK_SRC_EP && type == NN_EP_STOPPED)) {
+            fprintf (stderr, "src=%d type=%d\n", (int) src, (int) type);
+            nn_assert (src == NN_SOCK_SRC_EP && type == NN_EP_STOPPED);
+        }
         ep = (struct nn_ep*) srcptr;
         nn_list_erase (&sock->sdeps, &ep->item);
         nn_ep_term (ep);
